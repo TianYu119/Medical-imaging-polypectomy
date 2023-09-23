@@ -1,0 +1,8 @@
+*.h5
+*.png
+TestDataset/
+TrainDataset/
+output/
+*.csv
+*.txt
+*.pyc
