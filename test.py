@@ -12,8 +12,8 @@ from optimizers.lion_opt import Lion
 import cv2
 import numpy as np
 from sklearn.metrics import jaccard_score, mean_absolute_error
-from layers.convformer import MLPBlock
-
+from layers.convformer import MLPBlock,SpatialAttentionLayer
+import shutil
 
 
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
@@ -49,11 +49,18 @@ min_lr = 1e-6
 # Y_full = sorted(os.listdir(f'{route}/masks'))
 
 
-route = './TestDataset/CVC-ClinicDB'
-X_path = './TestDataset/CVC-ClinicDB/images/'
-Y_path = './TestDataset/CVC-ClinicDB/masks/'
-X_full = sorted(os.listdir(f'{route}/images'))
-Y_full = sorted(os.listdir(f'{route}/masks'))
+# route = './TestDataset/CVC-ClinicDB'
+# X_path = './TestDataset/CVC-ClinicDB/images/'
+# Y_path = './TestDataset/CVC-ClinicDB/masks/'
+# X_full = sorted(os.listdir(f'{route}/images'))
+# Y_full = sorted(os.listdir(f'{route}/masks'))
+
+
+# route = './TestDataset/Kvasir'
+# X_path = './TestDataset/Kvasir/images/'
+# Y_path = './TestDataset/Kvasir/masks/'
+# X_full = sorted(os.listdir(f'{route}/images'))
+# Y_full = sorted(os.listdir(f'{route}/masks'))
 
 
 # X_train, X_valid = train_test_split(X_full, test_size=valid_size, random_state=SEED)
@@ -104,10 +111,28 @@ Y_test = [Y_path + '/' + y for y in Y_test]
 # # 处理预测结果
 # print(predictions)
 
+output_folder = "output"
+
+# 检查文件夹是否存在
+if os.path.exists(output_folder):
+    # 遍历文件夹中的所有文件
+    for filename in os.listdir(output_folder):
+        # 构建文件的完整路径
+        file_path = os.path.join(output_folder, filename)
+        
+        # 检查是否是文件，然后删除它
+        if os.path.isfile(file_path) or os.path.islink(file_path):
+            os.unlink(file_path)
+        # 如果是目录，递归地删除它
+        elif os.path.isdir(file_path):
+            shutil.rmtree(file_path)
+else:
+    print("The specified folder does not exist.")
+
 
 # 加载模型
 model_path = 'better_model.h5'  # 模型文件的路径
-custom_objects={"dice": dice_loss, "dice_coeff": dice_coeff, "bce_dice_loss": bce_dice_loss, "IoU": IoU,"zero_IoU":zero_IoU}
+custom_objects={"dice": dice_loss, "dice_coeff": dice_coeff, "bce_dice_loss": bce_dice_loss, "IoU": IoU,"zero_IoU":zero_IoU,'SpatialAttentionLayer': SpatialAttentionLayer}
 custom_objects["MLPBlock"] = MLPBlock 
 loaded_model = tf.keras.models.load_model(model_path,custom_objects=custom_objects )
 
@@ -166,7 +191,6 @@ for i, (segmented_image, true_mask_path) in enumerate(zip(segmented_images, Y_te
 
 
 # 文件夹路径
-output_folder = "output"
 masks_folder = Y_path
 
 # 获取output文件夹中的所有文件名并按名称排序
