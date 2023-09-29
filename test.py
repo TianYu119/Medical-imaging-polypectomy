@@ -16,11 +16,15 @@ from layers.convformer import MLPBlock,SpatialAttentionLayer
 import shutil
 
 
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+# os.environ["CUDA_VISIBLE_DEVICES"]="2"
+
+
+
+
 img_size = 256
-BATCH_SIZE = 8
+BATCH_SIZE = 1
 SEED = 42
-save_path = "best_model.h5"
+save_path = "final_model.h5"
 
 valid_size = 0.1
 test_size = 0.15
@@ -32,6 +36,13 @@ min_lr = 1e-6
 # route = './TestDataset/CVC-300'
 # X_path = './TestDataset/CVC-300/images/'
 # Y_path = './TestDataset/CVC-300/masks/'
+# X_full = sorted(os.listdir(f'{route}/images'))
+# Y_full = sorted(os.listdir(f'{route}/masks'))
+
+
+# route = './TestDataset/Kvasir-SEG'
+# X_path = './TestDataset/Kvasir-SEG/images/'
+# Y_path = './TestDataset/Kvasir-SEG/masks/'
 # X_full = sorted(os.listdir(f'{route}/images'))
 # Y_full = sorted(os.listdir(f'{route}/masks'))
 
@@ -56,11 +67,11 @@ min_lr = 1e-6
 # Y_full = sorted(os.listdir(f'{route}/masks'))
 
 
-# route = './TestDataset/Kvasir'
-# X_path = './TestDataset/Kvasir/images/'
-# Y_path = './TestDataset/Kvasir/masks/'
-# X_full = sorted(os.listdir(f'{route}/images'))
-# Y_full = sorted(os.listdir(f'{route}/masks'))
+route = './TestDataset/Kvasir'
+X_path = './TestDataset/Kvasir/images/'
+Y_path = './TestDataset/Kvasir/masks/'
+X_full = sorted(os.listdir(f'{route}/images'))
+Y_full = sorted(os.listdir(f'{route}/masks'))
 
 
 # X_train, X_valid = train_test_split(X_full, test_size=valid_size, random_state=SEED)
@@ -150,27 +161,32 @@ predictions = loaded_model.predict(test_dataset)
 print(X_test)
 
 
-threshold = 0.3  # 你可以根据需要调整阈值
+threshold = 0.999 # 你可以根据需要调整阈值
 
 # 目标图像大小
 target_height = 966
 target_width = 1225
 
 # 初始化一个高斯滤波器，可以调整卷积核的大小
-gaussian_filter = cv2.getGaussianKernel(ksize=5, sigma=0)  # 调整ksize和sigma来控制平滑程度
+gaussian_filter = cv2.getGaussianKernel(ksize=11, sigma=1)  # 调整ksize和sigma来控制平滑程度
 
-# 定义形态学操作的核，用于去噪声
-kernel = np.ones((5, 5), np.uint8)  # 调整核的大小来控制去噪声程度
+kernel = np.ones((7, 7), np.uint8)  # 尝试不同的核大小
 
 # 遍历预测结果
 segmented_images = []
 
 for prediction, true_mask_path in zip(predictions, Y_test):
     # 将预测掩码转换为二进制图像
+    
     binary_mask = (prediction > threshold).astype(np.uint8)
     
     # 对二进制图像进行高斯平滑
     smoothed_mask = cv2.filter2D(binary_mask, -1, gaussian_filter)
+
+    smoothed_mask = cv2.medianBlur(smoothed_mask, 5)  # 中值滤波
+
+    smoothed_mask = cv2.bilateralFilter(smoothed_mask, 9, 75, 75)
+
 
     # 可选：对平滑后的图像进行形态学开操作去噪声
     opened_mask = cv2.morphologyEx(smoothed_mask, cv2.MORPH_OPEN, kernel)

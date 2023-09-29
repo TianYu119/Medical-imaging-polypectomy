@@ -2,29 +2,10 @@ import tensorflow as tf
 
 
 
-def convformer(input_tensor, filters, padding="same"):
-    x = tf.keras.layers.LayerNormalization()(input_tensor)
-    x = tf.keras.layers.SeparableConv2D(filters, kernel_size=(3, 3), padding=padding)(x)
-
-    #空间注意力
-    attn_output = SpatialAttentionLayer()(x)
-    x = tf.keras.layers.Add()([x, attn_output])
-
-    # MLP层
-    mlp_output = MLPBlock(units=filters)(x)
-    out = tf.keras.layers.Add()([mlp_output, input_tensor])
-
-    x1 = tf.keras.layers.Dense(filters, activation="relu")(out)
-    x1 = tf.keras.layers.Dense(filters)(x1)
-    out_tensor = tf.keras.layers.Add()([out, x1])
-
-    return out_tensor
-
-
 
 
 class MLPBlock(tf.keras.layers.Layer):
-    def __init__(self, units, activation="relu",name=None,trainable=True,dtype=None):
+    def __init__(self, units, activation="gelu",name=None,trainable=True,dtype=None):
         super(MLPBlock, self).__init__(trainable=trainable,name=name,dtype=dtype)
         self.units = units
         self.activation = activation

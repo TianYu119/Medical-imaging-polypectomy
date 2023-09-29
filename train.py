@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import tensorflow_addons as tfa  
 from optimizers.lion_opt import Lion
 from tensorflow.keras.callbacks import ModelCheckpoint
-
+import shutil
 
 
 # os.environ["CUDA_VISIBLE_DEVICES"]="2"
@@ -64,9 +64,9 @@ route = './TrainDataset'
 X_path = './TrainDataset/image/'
 Y_path = './TrainDataset/masks/'
 
-# route = './Kvasir-SEG'
-# X_path = './Kvasir-SEG/images/'
-# Y_path = './Kvasir-SEG/masks/'
+# route = './TrainDataset/Kvasir-SEG'
+# X_path = './TrainDataset/Kvasir-SEG/images/'
+# Y_path = './TrainDataset/Kvasir-SEG/masks/'
 
 X_full = sorted(os.listdir(f'{route}/image'))
 Y_full = sorted(os.listdir(f'{route}/masks'))
@@ -130,6 +130,26 @@ print(his)
 model.load_weights(save_path)
 
 
+# # 定义目标文件夹
+# images_output_folder = './TrainDataset/Kvasir-SEG/test/images/'
+# masks_output_folder = './TrainDataset/Kvasir-SEG/test/masks/'
+
+# # 如果目标文件夹不存在，则创建
+# if not os.path.exists(images_output_folder):
+#     os.makedirs(images_output_folder)
+    
+# if not os.path.exists(masks_output_folder):
+#     os.makedirs(masks_output_folder)
+
+# # 遍历测试集中的每个图像和掩码，并将它们复制到目标文件夹
+# for img_path, mask_path in zip(X_test, Y_test):
+#     # 构建目标文件路径
+#     img_dest_path = os.path.join(images_output_folder, os.path.basename(img_path))
+#     mask_dest_path = os.path.join(masks_output_folder, os.path.basename(mask_path))
+    
+#     # 复制文件
+#     shutil.copy(img_path, img_dest_path)
+#     shutil.copy(mask_path, mask_dest_path)
 
 # 从历史记录中提取训练损失、验证损失和准确率
 train_loss = his.history['loss']
