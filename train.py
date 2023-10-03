@@ -1,6 +1,6 @@
 from sklearn.model_selection import train_test_split
 import tensorflow as tf  
-from metrics.segmentation_metrics import dice_coeff, bce_dice_loss, IoU, zero_IoU, dice_loss, total_loss
+from metrics.segmentation_metrics import dice_coeff, bce_dice_loss, IoU, zero_IoU, dice_loss, total_loss,s_measure, weighted_f_measure, mean_e_measure, max_e_measure
 from tensorflow.keras.utils import get_custom_objects
 import os 
 from callbacks.callbacks import get_callbacks, cosine_annealing_with_warmup
@@ -12,12 +12,13 @@ import tensorflow_addons as tfa
 from optimizers.lion_opt import Lion
 from tensorflow.keras.callbacks import ModelCheckpoint
 import shutil
+from tensorflow.keras.metrics import MeanAbsoluteError
 
 
-# os.environ["CUDA_VISIBLE_DEVICES"]="2"
+# os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 
 img_size = 256
-BATCH_SIZE = 6
+BATCH_SIZE = 4
 SEED = 42
 save_path = "best_model.h5"
 
@@ -57,7 +58,7 @@ opts = tfa.optimizers.AdamW(learning_rate = 1e-4, weight_decay = learning_rate_f
 get_custom_objects().update({"dice": dice_loss})
 model.compile(optimizer = opts,
             loss='dice',
-            metrics=[dice_coeff,bce_dice_loss, IoU, zero_IoU])
+            metrics=[dice_coeff,bce_dice_loss, IoU, zero_IoU, weighted_f_measure,s_measure, mean_e_measure, max_e_measure,MeanAbsoluteError(name='mae')])
 
 # model.summary()
 route = './TrainDataset'
@@ -117,7 +118,8 @@ callbacks.append(checkpoint)
 steps_per_epoch = len(X_train) // BATCH_SIZE
 
 print("START TRAINING:")
-train_dataset = train_dataset.repeat()
+
+
 print(train_dataset)
 his = model.fit(train_dataset, 
             epochs=epochs,
@@ -126,6 +128,16 @@ his = model.fit(train_dataset,
             steps_per_epoch=steps_per_epoch,
             validation_data=valid_dataset)
 
+# train_dataset = build_dataset(X_train, Y_train, bsize=BATCH_SIZE, decode_fn=train_decoder, 
+#                             augmentAdv=False, augment=False, augmentAdvSeg=True)
+# train_dataset = train_dataset.repeat()
+
+# his = model.fit(train_dataset, 
+#             epochs=epochs-150,
+#             verbose=1,
+#             callbacks=callbacks,
+#             steps_per_epoch=steps_per_epoch,
+#             validation_data=valid_dataset)
 print(his)
 model.load_weights(save_path)
 

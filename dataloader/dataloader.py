@@ -14,22 +14,120 @@ import os
     
 #     return strategy
 
+# def default_augment_seg(input_image, input_mask):
+
+#     input_image = tf.image.random_brightness(input_image, 0.1)
+#     input_image = tf.image.random_contrast(input_image, 0.9, 1.1)
+#     input_image = tf.image.random_saturation(input_image, 0.9, 1.1)
+#     input_image = tf.image.random_hue(input_image, 0.01)
+
+#     # flipping random horizontal or vertical
+#     if tf.random.uniform(()) > 0.5:
+#         input_image = tf.image.flip_left_right(input_image)
+#         input_mask = tf.image.flip_left_right(input_mask)
+#     if tf.random.uniform(()) > 0.5:
+#         input_image = tf.image.flip_up_down(input_image)
+#         input_mask = tf.image.flip_up_down(input_mask)
+    
+#     return input_image, input_mask
+
 def default_augment_seg(input_image, input_mask):
+    # 随机裁剪图像和掩码，模拟不同小息肉的大小和位置
+    resized_image, resized_mask = random_crop_and_resize(input_image, input_mask, 256, 256)
+    
+    # 随机旋转图像和掩码，模拟不同角度的小息肉
+    input_image, input_mask = random_rotation(input_image, input_mask)
+    
+    # 添加其他数据增强技术，例如随机亮度、对比度、饱和度和色相的变化
+    input_image = random_brightness(input_image)
+    input_image = random_contrast(input_image)
+    input_image = random_saturation(input_image)
+    input_image = random_hue(input_image)
 
-    input_image = tf.image.random_brightness(input_image, 0.1)
-    input_image = tf.image.random_contrast(input_image, 0.9, 1.1)
-    input_image = tf.image.random_saturation(input_image, 0.9, 1.1)
-    input_image = tf.image.random_hue(input_image, 0.01)
+    # 随机水平翻转图像和掩码
+    if tf.random.uniform(()) > 0.5:
+        input_image, input_mask = random_horizontal_flip(input_image, input_mask)
 
-    # flipping random horizontal or vertical
+    # 随机垂直翻转图像和掩码
     if tf.random.uniform(()) > 0.5:
-        input_image = tf.image.flip_left_right(input_image)
-        input_mask = tf.image.flip_left_right(input_mask)
-    if tf.random.uniform(()) > 0.5:
-        input_image = tf.image.flip_up_down(input_image)
-        input_mask = tf.image.flip_up_down(input_mask)
+        input_image, input_mask = random_vertical_flip(input_image, input_mask)
+    
+
+
+    return input_image, input_mask
+
+def random_crop_and_resize(input_image, input_mask, target_height, target_width):
+    # 随机裁剪尺寸
+    crop_height = tf.random.uniform([], 0.5, 1.0)
+    crop_width = tf.random.uniform([], 0.5, 1.0)
+    
+    image_shape = tf.shape(input_image)
+    new_height = tf.maximum(1, tf.cast(crop_height * tf.cast(image_shape[0], tf.float32), tf.int32))
+    new_width = tf.maximum(1, tf.cast(crop_width * tf.cast(image_shape[1], tf.float32), tf.int32))
+
+    
+    if new_width >= image_shape[1]:
+            x = 0
+    else:
+            x = tf.random.uniform([], 0, image_shape[1] - new_width, dtype=tf.int32)
+
+    if new_height >= image_shape[0]:
+            y = 0
+    else:
+            y = tf.random.uniform([], 0, image_shape[0] - new_height, dtype=tf.int32)
+
+    cropped_image = tf.image.crop_to_bounding_box(input_image, y, x, new_height, new_width)
+    cropped_mask = tf.image.crop_to_bounding_box(input_mask, y, x, new_height, new_width)
+
+    # 调整裁剪后的图片和掩码尺寸
+    resized_image = tf.image.resize(cropped_image, [target_height, target_width])
+    resized_mask = tf.image.resize(cropped_mask, [target_height, target_width])
+
+    return resized_image, resized_mask
+
+
+def random_rotation(input_image, input_mask):
+    # 随机旋转角度
+    angle = tf.random.uniform([], 0, 360)
+    
+    input_image = tf.image.rot90(input_image, k=tf.cast(angle / 90, dtype=tf.int32))
+    input_mask = tf.image.rot90(input_mask, k=tf.cast(angle / 90, dtype=tf.int32))
     
     return input_image, input_mask
+
+def random_horizontal_flip(input_image, input_mask):
+    input_image = tf.image.flip_left_right(input_image)
+    input_mask = tf.image.flip_left_right(input_mask)
+    
+    return input_image, input_mask
+
+def random_vertical_flip(input_image, input_mask):
+    input_image = tf.image.flip_up_down(input_image)
+    input_mask = tf.image.flip_up_down(input_mask)
+    
+    return input_image, input_mask
+
+# 随机亮度变化
+def random_brightness(input_image):
+    input_image = tf.image.random_brightness(input_image, 0.1)
+    return input_image
+
+# 随机对比度变化
+def random_contrast(input_image):
+    input_image = tf.image.random_contrast(input_image, 0.9, 1.1)
+    return input_image
+
+# 随机饱和度变化
+def random_saturation(input_image):
+    input_image = tf.image.random_saturation(input_image, 0.9, 1.1)
+    return input_image
+
+# 随机色相变化
+def random_hue(input_image):
+    input_image = tf.image.random_hue(input_image, 0.01)
+    return input_image
+
+
 
 def BatchAdvAugmentSeg(imagesT, masksT):
     
@@ -122,7 +220,7 @@ def build_dataset(paths, labels=None, bsize=32, cache=True,
     dset = dset.map(decode_fn, num_parallel_calls=AUTO)
     dset = dset.cache(cache_dir) if cache else dset
     dset = dset.map(augment_fn, num_parallel_calls=AUTO) if augment else dset
-    #dset = dset.repeat() if repeat else dset
+    dset = dset.repeat() if repeat else dset
     dset = dset.shuffle(shuffle) if shuffle else dset
     dset = dset.batch(bsize)
     # dset = dset.map(BatchAdvAugment, num_parallel_calls=AUTO) if augmentAdv else dset
