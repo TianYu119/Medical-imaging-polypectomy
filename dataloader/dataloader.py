@@ -33,16 +33,27 @@ import os
 
 def default_augment_seg(input_image, input_mask):
     # 随机裁剪图像和掩码，模拟不同小息肉的大小和位置
-    resized_image, resized_mask = random_crop_and_resize(input_image, input_mask, 256, 256)
+    # if tf.random.uniform(()) > 0.5:
+    # input_image, input_mask = random_crop_and_resize(input_image, input_mask, 256, 256)
     
     # 随机旋转图像和掩码，模拟不同角度的小息肉
-    input_image, input_mask = random_rotation(input_image, input_mask)
+    if tf.random.uniform(()) > 0.5:
+        input_image, input_mask = random_rotation(input_image, input_mask)
     
     # 添加其他数据增强技术，例如随机亮度、对比度、饱和度和色相的变化
-    input_image = random_brightness(input_image)
-    input_image = random_contrast(input_image)
-    input_image = random_saturation(input_image)
-    input_image = random_hue(input_image)
+        # 随机应用亮度变化
+    if tf.random.uniform(()) > 0.5:
+        input_image = random_brightness(input_image)
+    
+    # 随机应用对比度变化
+    if tf.random.uniform(()) > 0.5:
+        input_image = random_contrast(input_image)
+
+    if tf.random.uniform(()) > 0.5:    
+        input_image = random_saturation(input_image)
+
+    if tf.random.uniform(()) > 0.5:
+        input_image = random_hue(input_image)
 
     # 随机水平翻转图像和掩码
     if tf.random.uniform(()) > 0.5:
@@ -52,38 +63,86 @@ def default_augment_seg(input_image, input_mask):
     if tf.random.uniform(()) > 0.5:
         input_image, input_mask = random_vertical_flip(input_image, input_mask)
     
-
+    # 随机放缩
+    if tf.random.uniform(()) > 0.5:
+        input_image, input_mask = random_zoom(input_image, input_mask, 256, 256)
+    
+    # 随机噪声
+    if tf.random.uniform(()) > 0.7:
+        input_image = random_noise(input_image)
 
     return input_image, input_mask
 
-def random_crop_and_resize(input_image, input_mask, target_height, target_width):
-    # 随机裁剪尺寸
-    crop_height = tf.random.uniform([], 0.5, 1.0)
-    crop_width = tf.random.uniform([], 0.5, 1.0)
-    
+
+def random_zoom(input_image, input_mask, target_height, target_width, min_zoom=0.8, max_zoom=1.2):
     image_shape = tf.shape(input_image)
-    new_height = tf.maximum(1, tf.cast(crop_height * tf.cast(image_shape[0], tf.float32), tf.int32))
-    new_width = tf.maximum(1, tf.cast(crop_width * tf.cast(image_shape[1], tf.float32), tf.int32))
+    original_height = image_shape[1]
+    original_width = image_shape[2]
+    
+    max_zoom_height = tf.cast(target_height / original_height, tf.float32)
+    max_zoom_width = tf.cast(target_width / original_width, tf.float32)
 
     
-    if new_width >= image_shape[1]:
-            x = 0
-    else:
-            x = tf.random.uniform([], 0, image_shape[1] - new_width, dtype=tf.int32)
+    max_zoom = tf.minimum(max_zoom, tf.minimum(max_zoom_height, max_zoom_width))
+    
+    zoom_factor = tf.random.uniform([], min_zoom, max_zoom)
+    
+    new_height = tf.cast(tf.cast(original_height, tf.float32) * zoom_factor, tf.int32)
+    new_width = tf.cast(tf.cast(original_width, tf.float32) * zoom_factor, tf.int32)
+    
+    input_image = tf.image.resize(input_image, [new_height, new_width])
+    input_mask = tf.image.resize(input_mask, [new_height, new_width])
 
-    if new_height >= image_shape[0]:
-            y = 0
-    else:
-            y = tf.random.uniform([], 0, image_shape[0] - new_height, dtype=tf.int32)
+    # Calculate padding values
+    pad_height = target_height - new_height
+    pad_width = target_width - new_width
+    pad_top = pad_height // 2
+    pad_bottom = pad_height - pad_top
+    pad_left = pad_width // 2
+    pad_right = pad_width - pad_left
 
-    cropped_image = tf.image.crop_to_bounding_box(input_image, y, x, new_height, new_width)
-    cropped_mask = tf.image.crop_to_bounding_box(input_mask, y, x, new_height, new_width)
+    # Apply padding
+    input_image = tf.pad(input_image, [[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]])
+    input_mask = tf.pad(input_mask, [[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]])
+    
+    return input_image, input_mask
 
-    # 调整裁剪后的图片和掩码尺寸
-    resized_image = tf.image.resize(cropped_image, [target_height, target_width])
-    resized_mask = tf.image.resize(cropped_mask, [target_height, target_width])
 
-    return resized_image, resized_mask
+
+def random_noise(input_image, mean=0, stddev=0.1):
+    noise = tf.random.normal(shape=tf.shape(input_image), mean=mean, stddev=stddev)
+    input_image = input_image + noise
+    input_image = tf.clip_by_value(input_image, 0, 1)  # Ensure values are between 0 and 1
+    return input_image
+
+# def random_crop_and_resize(input_image, input_mask, target_height, target_width):
+#     # 随机裁剪尺寸
+#     crop_height = tf.random.uniform([], 0.5, 1.0)
+#     crop_width = tf.random.uniform([], 0.5, 1.0)
+    
+#     image_shape = tf.shape(input_image)
+#     new_height = tf.maximum(1, tf.cast(crop_height * tf.cast(image_shape[0], tf.float32), tf.int32))
+#     new_width = tf.maximum(1, tf.cast(crop_width * tf.cast(image_shape[1], tf.float32), tf.int32))
+
+    
+#     if new_width >= image_shape[1]:
+#             x = 0
+#     else:
+#             x = tf.random.uniform([], 0, image_shape[1] - new_width, dtype=tf.int32)
+
+#     if new_height >= image_shape[0]:
+#             y = 0
+#     else:
+#             y = tf.random.uniform([], 0, image_shape[0] - new_height, dtype=tf.int32)
+
+#     cropped_image = tf.image.crop_to_bounding_box(input_image, y, x, new_height, new_width)
+#     cropped_mask = tf.image.crop_to_bounding_box(input_mask, y, x, new_height, new_width)
+
+#     # 调整裁剪后的图片和掩码尺寸
+#     resized_image = tf.image.resize(cropped_image, [target_height, target_width])
+#     resized_mask = tf.image.resize(cropped_mask, [target_height, target_width])
+
+#     return resized_image, resized_mask
 
 
 def random_rotation(input_image, input_mask):

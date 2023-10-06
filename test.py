@@ -16,7 +16,7 @@ from layers.convformer import MLPBlock,SpatialAttentionLayer,ChannelAttentionLay
 import shutil
 from PIL import Image
 
-# os.environ["CUDA_VISIBLE_DEVICES"]="2"
+os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 
 
 
